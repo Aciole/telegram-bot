@@ -1,0 +1,25 @@
+{
+  "name": "prof-ingles-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon ./src/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@notionhq/client": "^2.2.6",
+    "axios": "^1.4.0",
+    "chatgpt": "^5.2.5",
+    "chatgpt-api": "^0.0.6",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "node-telegram-bot-api": "^0.61.0",
+    "openai": "^3.3.0",
+    "rss-parser": "^3.13.0",
+    "vosk-js": "^0.3.0"
+  }
+}
