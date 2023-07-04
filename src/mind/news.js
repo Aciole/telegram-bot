@@ -1,6 +1,6 @@
 
 const Parser = require('rss-parser');
-const { splitMenu } = require('./utils');
+const { bot, splitMenu } = require('../utils');
 
 const parser = new Parser();
 const itemsPerPage = 5;
@@ -22,7 +22,7 @@ const news = [
     },
 ]
 
-function initNews(bot, chatId) {
+function initNews(chatId) {
 
     bot.sendMessage(chatId, 'Noticias sobre ...', {
         reply_markup: {
@@ -34,7 +34,7 @@ function initNews(bot, chatId) {
     bot.once('message', (selectedNews) => {
         const rss = news.filter(n => n.title == selectedNews.text)[0].rss
         parser.parseURL(rss).then((feed) => {
-            displayPage(bot, chatId, currentPage, feed);
+            displayPage(chatId, currentPage, feed);
 
             bot.on('callback_query', (query) => {
                 const chatId = query.message.chat.id;
@@ -57,7 +57,7 @@ function initNews(bot, chatId) {
                         return;
                     }
 
-                    displayPage(bot, chatId, currentPage, feed);
+                    displayPage(chatId, currentPage, feed);
                 }
 
             })
@@ -68,12 +68,9 @@ function initNews(bot, chatId) {
             bot.sendMessage(chatId, 'Ocorreu um erro ao buscar o feed RSS. Tente novamente mais tarde.');
         });
     })
-
-
-
 }
 
-function displayPage(bot, chatId, page, feed) {
+function displayPage(chatId, page, feed) {
 
     const startIdx = page * itemsPerPage;
     const endIdx = startIdx + itemsPerPage;

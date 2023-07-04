@@ -1,18 +1,18 @@
-const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
 
-const { initGym, gymMenu } = require('./gym')
-const { initNews, newsMenu } = require('./news')
+const { initGym, gymMenu } = require('./fitness/gym')
+const { initNews, newsMenu } = require('./mind/news')
+const { startTherapist, therapistMenu } = require('./mind/therapist')
+const { bot } = require('./utils')
 
-const telegramToken = process.env.SECRET_TELEGRAM;
-const bot = new TelegramBot(telegramToken, { polling: true });
+let chatActived = false;
 
 bot.onText(/\/start/, (msg => {
     const chatId = msg.chat.id;
-
+    chatActived = false;
     bot.sendMessage(chatId, 'Selecione uma opção', {
         reply_markup: {
-            keyboard: [[gymMenu.link, newsMenu.link]],
+            keyboard: [[gymMenu.link, newsMenu.link, therapistMenu.link]],
             one_time_keyboard: true,
         }
     });
@@ -21,11 +21,17 @@ bot.onText(/\/start/, (msg => {
 bot.onText(gymMenu.regex, (msg) => {
     const chatId = msg.chat.id;
 
-    initGym(bot, chatId);
+    initGym(chatId);
 });
 
 bot.onText(newsMenu.regex, (msg) => {
     const chatId = msg.chat.id;
 
-    initNews(bot, chatId);
+    initNews(chatId);
+});
+
+bot.onText(therapistMenu.regex, (msg) => {
+    const chatId = msg.chat.id;
+    chatActived = false;
+    // startTherapist(chatId, chatActived);
 });

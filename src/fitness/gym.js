@@ -1,7 +1,7 @@
 
 const { Client } = require('@notionhq/client');
-const { splitMenu } = require('./utils')
-const { workouts } = require('./constants/workout')
+const { bot, splitMenu } = require('../utils')
+const { workouts } = require('../constants/workout')
 
 const notionSecret = process.env.SECRET_NOTION;
 const notionDatabaseId = process.env.NOTION_GYM_DATABASEID;
@@ -12,7 +12,7 @@ const notion = new Client({
 
 const grupoMuscular = workouts.map(workout => workout.title);
 
-function initGym(bot, chatId) {
+function initGym(chatId) {
 
     bot.sendMessage(chatId, 'Selecione uma opção', {
         reply_markup: {
@@ -25,10 +25,10 @@ function initGym(bot, chatId) {
 
         switch (selectedGroup.text) {
             case 'Treinar':
-                training(bot, chatId);
+                training(chatId);
                 break;
             case 'Relatorio':
-                queries(bot, chatId);
+                queries(chatId);
                 break;
             default:
                 bot.sendMessage(chatId, 'opção não existe');
@@ -39,56 +39,9 @@ function initGym(bot, chatId) {
     })
 }
 
-function queries(bot, chatId) {
 
-    bot.sendMessage(chatId, 'Selecione uma opção:', {
-        reply_markup: {
-            keyboard: splitMenu(['Volume Semana Atual', 'Volume Semana Passada'], 3),
-            one_time_keyboard: true
-        }
-    });
-
-    bot.once('message', (menu) => {
-
-        bot.sendMessage(chatId, 'Selecione um Agrupamento Muscular:', {
-            reply_markup: {
-                keyboard: splitMenu([...grupoMuscular, 'voltar'], 3),
-                one_time_keyboard: true
-            }
-        });
-
-        bot.once('message', (selectedGroup) => {
-            switch (menu.text) {
-                case 'Volume Semana Atual':
-                    getVolumeCurrentWeekByGroup(bot, chatId, selectedGroup.text);
-                    break;
-                case 'Volume Semana Passada':
-                    bot.sendMessage(chatId, 'Volume Semana Passada')
-                    break;
-
-                default:
-                    break;
-            }
-        })
-
-
-
-    })
-
-    // bot.sendMessage(chatId, 'Selecione um Agrupamento Muscular:', {
-    //     reply_markup: {
-    //         keyboard: splitMenu([...grupoMuscular, 'voltar'], 3),
-    //         one_time_keyboard: true
-    //     }
-    // });
-
-
-}
-
-function training(bot, chatId) {
+function training(chatId) {
     let serie = 1;
-
-
 
     bot.sendMessage(chatId, 'Selecione um Agrupamento Muscular:', {
         reply_markup: {
@@ -128,12 +81,12 @@ function training(bot, chatId) {
 
             const exercise = selectedExercise[0][0];
 
-            executeWorkOut(bot, chatId, group, exercise, serie)
+            executeWorkOut(chatId, group, exercise, serie)
         });
     })
 }
 
-function executeWorkOut(bot, chatId, group, exercise, serie) {
+function executeWorkOut(chatId, group, exercise, serie) {
 
     bot.sendMessage(chatId, `Informe a carga de ${exercise.title}`, {
         reply_markup: {
@@ -145,7 +98,7 @@ function executeWorkOut(bot, chatId, group, exercise, serie) {
     bot.once('message', (weight) => {
 
         if (weight.text == 'Fim') {
-            training(bot, chatId)
+            training(chatId)
             return;
         }
 
@@ -172,7 +125,7 @@ function executeWorkOut(bot, chatId, group, exercise, serie) {
                 registrarTreino(group, exercise.title, weight.text, serie, reps.text, restTime.text)
                     .then(() => {
                         serie += 1;
-                        executeWorkOut(bot, chatId, group, exercise, serie);
+                        executeWorkOut(chatId, group, exercise, serie);
                     })
                     .catch((error) => {
                         bot.sendMessage(chatId, 'Ocorreu um erro ao registrar o treino.');
@@ -182,7 +135,7 @@ function executeWorkOut(bot, chatId, group, exercise, serie) {
     });
 }
 
-async function getVolumeCurrentWeekByGroup(bot, chatId, group) {
+async function getVolumeCurrentWeekByGroup(chatId, group) {
     notion.databases.query({
         database_id: notionDatabaseId,
         filter: {
@@ -203,7 +156,6 @@ async function getVolumeCurrentWeekByGroup(bot, chatId, group) {
         }
     }).then((result) => {
         const { results } = result;
-        console.log('getVolumeCurrentWeekByGroup', results.map(r => r.properties))
 
         const projection = results.map(r => r.properties);
 
@@ -222,6 +174,40 @@ async function getVolumeCurrentWeekByGroup(bot, chatId, group) {
         bot.sendMessage(chatId, `
                 Essa semana foi feitas ${totalSeries} Series, e ${totalWeights} kg, no ${group}
         `)
+    })
+}
+
+function queries(chatId) {
+
+    bot.sendMessage(chatId, 'Selecione uma opção:', {
+        reply_markup: {
+            keyboard: splitMenu(['Volume Semana Atual', 'Volume Semana Passada'], 3),
+            one_time_keyboard: true
+        }
+    });
+
+    bot.once('message', (menu) => {
+
+        bot.sendMessage(chatId, 'Selecione um Agrupamento Muscular:', {
+            reply_markup: {
+                keyboard: splitMenu([...grupoMuscular, 'voltar'], 3),
+                one_time_keyboard: true
+            }
+        });
+
+        bot.once('message', (selectedGroup) => {
+            switch (menu.text) {
+                case 'Volume Semana Atual':
+                    getVolumeCurrentWeekByGroup(chatId, selectedGroup.text);
+                    break;
+                case 'Volume Semana Passada':
+                    bot.sendMessage(chatId, 'Volume Semana Passada')
+                    break;
+
+                default:
+                    break;
+            }
+        })
     })
 }
 
