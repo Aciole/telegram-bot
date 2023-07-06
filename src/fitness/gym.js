@@ -1,14 +1,13 @@
-
-const { Client } = require('@notionhq/client');
 const { bot, splitMenu } = require('../utils')
 const { workouts } = require('../constants/workout')
+const {
+    getVolumeCurrentWeekByGroupQuery,
+    getVolumePastWeekByGroupQuery,
+    getVolumeTodayByGroupQuery,
+    getVolumeLastTrainingByGroupQuery
+} = require('./notion/queries')
+const { registerExerciseExecution } = require('./notion/commands')
 
-const notionSecret = process.env.SECRET_NOTION;
-const notionDatabaseId = process.env.NOTION_GYM_DATABASEID;
-
-const notion = new Client({
-    auth: notionSecret
-});
 
 const grupoMuscular = workouts.map(workout => workout.title);
 
@@ -16,7 +15,7 @@ function initGym(chatId) {
 
     bot.sendMessage(chatId, 'Selecione uma opção', {
         reply_markup: {
-            keyboard: splitMenu(['Relatorio', 'Treinar'], 3),
+            keyboard: splitMenu(['Relatorios', 'Treinar'], 3),
             one_time_keyboard: true
         }
     });
@@ -27,15 +26,13 @@ function initGym(chatId) {
             case 'Treinar':
                 training(chatId);
                 break;
-            case 'Relatorio':
+            case 'Relatorios':
                 queries(chatId);
                 break;
             default:
                 bot.sendMessage(chatId, 'opção não existe');
                 break;
         }
-
-
     })
 }
 
@@ -88,7 +85,7 @@ function training(chatId) {
 
 function executeWorkOut(chatId, group, exercise, serie) {
 
-    bot.sendMessage(chatId, `Informe a carga de ${exercise.title}`, {
+    bot.sendMessage(chatId, `Informe a carga de ${exercise.title}, da Serie: ${serie}`, {
         reply_markup: {
             keyboard: splitMenu([...exercise.weights, 'Fim'], 4),
             one_time_keyboard: true
@@ -122,7 +119,7 @@ function executeWorkOut(chatId, group, exercise, serie) {
 
             bot.once('message', (reps) => {
 
-                registrarTreino(group, exercise.title, weight.text, serie, reps.text, restTime.text)
+                registerExerciseExecution(group, exercise.title, weight.text, serie, reps.text, restTime.text)
                     .then(() => {
                         serie += 1;
                         executeWorkOut(chatId, group, exercise, serie);
@@ -135,53 +132,16 @@ function executeWorkOut(chatId, group, exercise, serie) {
     });
 }
 
-async function getVolumeCurrentWeekByGroup(chatId, group) {
-    notion.databases.query({
-        database_id: notionDatabaseId,
-        filter: {
-            and: [
-                {
-                    property: 'Data',
-                    date: {
-                        this_week: {}
-                    }
-                },
-                {
-                    property: 'Agrupamento',
-                    rich_text: {
-                        contains: group
-                    }
-                }
-            ]
-        }
-    }).then((result) => {
-        const { results } = result;
-
-        const projection = results.map(r => r.properties);
-
-        const totalWeights =
-            projection
-                .map(p => p.Carga)
-                .map(c => c.number)
-                .reduce((partialSum, a) => partialSum + a, 0);
-
-        const totalSeries =
-            projection
-                .map(p => p.Serie)
-                .map(c => c.number)
-                .reduce((partialSum, a) => partialSum + a, 0);
-
-        bot.sendMessage(chatId, `
-                Essa semana foi feitas ${totalSeries} Series, e ${totalWeights} kg, no ${group}
-        `)
-    })
-}
-
 function queries(chatId) {
 
     bot.sendMessage(chatId, 'Selecione uma opção:', {
         reply_markup: {
-            keyboard: splitMenu(['Volume Semana Atual', 'Volume Semana Passada'], 3),
+            keyboard: splitMenu([
+                'Volume Semana Atual',
+                'Volume Semana Passada',
+                'Ultimo treino do mesmo agrupamento muscular',
+                'Treino de Hoje'
+            ], 3),
             one_time_keyboard: true
         }
     });
@@ -201,7 +161,14 @@ function queries(chatId) {
                     getVolumeCurrentWeekByGroup(chatId, selectedGroup.text);
                     break;
                 case 'Volume Semana Passada':
-                    bot.sendMessage(chatId, 'Volume Semana Passada')
+                    getVolumePastWeekByGroup(chatId, selectedGroup.text)
+                    break;
+                case 'Ultimo treino do mesmo agrupamento muscular':
+                    getVolumeLastTrainingByGroup(chatId, selectedGroup.text)
+                    break;
+
+                case 'Treino de Hoje':
+                    getVolumeTodayByGroupQuery(chatId, selectedGroup.text)
                     break;
 
                 default:
@@ -210,61 +177,70 @@ function queries(chatId) {
         })
     })
 }
+function getVolumeLastTrainingByGroup(chatId, group) {
 
-async function registrarTreino(group, exercise, carga, series, reps, restTime) {
+    getVolumeLastTrainingByGroupQuery(group)
+        .then((result => calc(chatId, result)))
+}
 
-    reps = reps.replace(' reps', '');
-    carga = carga.replace('kg', '');
-    carga = carga.replace('km', '');
 
-    notion.pages.create({
-        parent: {
-            database_id: notionDatabaseId,
-        },
-        properties: {
-            'Exercicios': {
-                title: [
-                    {
-                        text: {
-                            content: exercise
-                        }
-                    }
-                ]
-            },
-            "Agrupamento": {
-                rich_text: [
-                    {
-                        text: { content: group }
-                    }
-                ]
-            },
-            "Descanso": {
-                rich_text: [
-                    {
-                        text: { content: restTime }
-                    }
-                ]
-            },
-            "Serie": {
-                number: series
-            },
-            "Reps": {
-                number: parseInt(reps)
-            },
-            "Carga": {
-                number: parseInt(carga)
-            },
-            "Data": {
-                date: {
-                    start: new Date(),
-                    time_zone: 'Brazil/West'
-                }
+function getVolumeCurrentWeekByGroup(chatId, group) {
+    getVolumeCurrentWeekByGroupQuery(group)
+        .then((result) => {
+            const { results } = result;
+
+            if (results.length > 0) {
+                const projection = results.map(r => r.properties);
+
+                const totalWeights =
+                    projection
+                        .map(p => p.Carga)
+                        .map(c => c.number)
+                        .reduce((partialSum, a) => partialSum + a, 0);
+
+                const totalSeries =
+                    projection
+                        .map(p => p.Serie)
+                        .map(c => c.number)
+                        .reduce((partialSum, a) => partialSum + a, 0);
+
+                bot.sendMessage(chatId, `
+                    Essa semana foi feitas ${totalSeries} Series, e ${totalWeights} kg, no ${group}
+                `)
+            }
+        })
+}
+
+function getVolumePastWeekByGroup(chatId, group) {
+    return getVolumePastWeekByGroupQuery(group)
+        .then((result) => {
+            const { results } = result;
+
+            if (results.length > 0) {
+                const projection = results.map(r => r.properties);
+
+                const totalWeights =
+                    projection
+                        .map(p => p.Carga)
+                        .map(c => c.number)
+                        .reduce((partialSum, a) => partialSum + a, 0);
+
+                const totalSeries =
+                    projection
+                        .map(p => p.Serie)
+                        .map(c => c.number)
+                        .reduce((partialSum, a) => partialSum + a, 0);
+
+                bot.sendMessage(chatId, `
+                Essa semana foi feitas ${totalSeries} Series, e ${totalWeights} kg, no ${group}
+            `)
             }
 
-        }
-    })
-
+        })
 }
+
+
+
 
 const gymMenu = {
     regex: /\/gym/,
