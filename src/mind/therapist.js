@@ -12,26 +12,29 @@ const openaiChatApi = new OpenAIApi(new Configuration({
 }));
 
 function startTherapist(chatId, chatActived) {
-    iteration.count = 1;
+    iteration.count = 0;
 
-    bot.on('message', (msg) => {
+    if (chatActived) {
+        bot.sendMessage(chatId, "Oi sou um robô Terapeuta, como você está? você pode encerrar a consulta escrevendo /start");
+        bot.onText(/(.+)/, (msg, match) => {
 
-        if (chatActived) {
-            let msgText = '';
+            if (msg.text === '/start' || chatActived == false) {
+                chatActived = false;
+                return;
+            }
 
+            iteration.user = msg.chat.first_name;
+            let msgText = match[1].toLowerCase();
+
+            iteration.count = iteration.count + 1;
             if (msg.text === "/therapis") {
-                iteration.user = msg.chat.first_name;
                 msgText = `Eu sou ${msg.chat.first_name}`;
-            } else {
-                iteration.count = iteration.count + 1;
-                msgText = msg.text;
-                iteration[iteration.count] = msgText
             }
 
             generateOpenAIResponse(chatId, msgText);
-        }
 
-    });
+        });
+    }
 }
 
 function generateOpenAIResponse(chatId, msg) {
@@ -53,6 +56,8 @@ function generateOpenAIResponse(chatId, msg) {
         console.log(`iteration`, iteration)
         console.log(`USER: ${iteration.user}, `, msg)
         console.log('SYSTEM:', data)
+        iteration[iteration.count] = { user: msg, system: data };
+
         bot.sendMessage(chatId, data)
     }).catch((err) => {
         console.log(err)
