@@ -1,5 +1,5 @@
 const { notion, notionDatabaseId } = require('../client');
-const calculatedVolumeByroupingAndExercise = require('./calculated-by-grouping')
+const { calculatedVolumeByroupingAndExercise } = require('./calculated-by-grouping')
 
 
 function getVolumeByGroupAndDateQuery(chatId, group, datetime) {
