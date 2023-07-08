@@ -84,10 +84,9 @@ function generateOpenAIResponse(chatId, msg) {
         messages
     }).then((response) => {
         const data = response.data.choices[0].message.content;
-        console.log(`USER: ${msg.chat.first_name}, `, msg.text)
-        console.log('SYSTEM:', data)
+
         iteration[`${chatId}#${msg.chat.first_name}`].push({ userReply: msg.text, system: data });
-        console.log(`iteration`, iteration[`${chatId}#${msg.chat.first_name}`])
+
 
         bot.sendMessage(chatId, data)
     }).catch((err) => {

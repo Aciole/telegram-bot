@@ -36,49 +36,44 @@ function initGym(chatId) {
 }
 
 function training(chatId) {
-    let serie = 1;
 
-    bot.sendMessage(chatId, 'Selecione um Agrupamento Muscular:', {
+    dependsGroup(chatId, choiceExercise)
+
+}
+
+
+function choiceExercise(chatId, group) {
+    let serie = 1;
+    if (group == 'Fim de Treino') {
+        bot.sendMessage(chatId, `Terminou`);
+        return;
+    }
+
+    const selectedExercises = workouts
+        .filter(w => w.title == group)
+
+    const exercisesTitleKeyboard = selectedExercises
+        .map(w => w.exercises.map(e => e.title))
+        ;
+
+
+    bot.sendMessage(chatId, `Selecionado: ${group}\n Informe o Exercicio:`, {
         reply_markup: {
-            keyboard: splitMenu([...grupoMuscular, 'Fim de Treino'], 3),
+            keyboard: splitMenu(exercisesTitleKeyboard.flat(), 3),
             one_time_keyboard: true
         }
     });
 
-    bot.once('message', (selectedGroup) => {
-        const group = selectedGroup.text;
+    bot.once('message', (exerciseMsg) => {
 
-        if (group == 'Fim de Treino') {
-            bot.sendMessage(chatId, `Terminou`);
-            return;
-        }
+        const selectedExercise =
+            selectedExercises
+                .map(g => g.exercises.filter(e => e.title == exerciseMsg.text));
 
-        const selectedExercises = workouts
-            .filter(w => w.title == group)
+        const exercise = selectedExercise[0][0];
 
-        const exercisesTitleKeyboard = selectedExercises
-            .map(w => w.exercises.map(e => e.title))
-            ;
-
-
-        bot.sendMessage(chatId, `Selecionado: ${group}\n Informe o Exercicio:`, {
-            reply_markup: {
-                keyboard: splitMenu(exercisesTitleKeyboard.flat(), 3),
-                one_time_keyboard: true
-            }
-        });
-
-        bot.once('message', (exerciseMsg) => {
-
-            const selectedExercise =
-                selectedExercises
-                    .map(g => g.exercises.filter(e => e.title == exerciseMsg.text));
-
-            const exercise = selectedExercise[0][0];
-
-            executeWorkOut(chatId, group, exercise, serie)
-        });
-    })
+        executeWorkOut(chatId, group, exercise, serie)
+    });
 }
 
 function executeWorkOut(chatId, group, exercise, serie) {
@@ -168,6 +163,7 @@ function queries(chatId) {
     })
 }
 
+// aqui tá o secredo!
 function dependsGroup(chatId, callback) {
     bot.sendMessage(chatId, 'Selecione um Agrupamento Muscular:', {
         reply_markup: {
