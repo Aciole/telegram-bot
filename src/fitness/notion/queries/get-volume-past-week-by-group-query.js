@@ -1,25 +1,17 @@
 const { notion, notionDatabaseId } = require('../client');
+const { findPastWeek, findBySpecificGroup } = require('./database-filters')
+const { sendGeneralTrainingInformation } = require('./send-general-training-information')
 
-function getVolumePastWeekByGroupQuery(group) {
-    return notion.databases.query({
+function getVolumePastWeekByGroupQuery(chatId, group) {
+    notion.databases.query({
         database_id: notionDatabaseId,
         filter: {
             and: [
-                {
-                    property: 'Data',
-                    date: {
-                        past_week: {}
-                    }
-                },
-                {
-                    property: 'Agrupamento',
-                    rich_text: {
-                        contains: group
-                    }
-                }
+                findPastWeek,
+                findBySpecificGroup(group)
             ]
         }
-    })
+    }).then((result) => sendGeneralTrainingInformation(chatId, result))
 }
 
 module.exports = getVolumePastWeekByGroupQuery

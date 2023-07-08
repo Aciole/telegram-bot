@@ -8,7 +8,6 @@ const {
 } = require('./notion/queries')
 const { registerExerciseExecution } = require('./notion/commands')
 
-
 const grupoMuscular = workouts.map(workout => workout.title);
 
 function initGym(chatId) {
@@ -35,7 +34,6 @@ function initGym(chatId) {
         }
     })
 }
-
 
 function training(chatId) {
     let serie = 1;
@@ -137,10 +135,10 @@ function queries(chatId) {
     bot.sendMessage(chatId, 'Selecione uma opção:', {
         reply_markup: {
             keyboard: splitMenu([
-                'Volume Semana Atual',
-                'Volume Semana Passada',
-                'Ultimo treino do mesmo agrupamento muscular',
-                'Treino de Hoje'
+                'Volume Semana Atual Por Musculo',
+                'Volume Semana Passada Por Musculo',
+                'Ultimo treino do mesmo Musculo',
+                'Detalhes do treino de Hoje'
             ], 3),
             one_time_keyboard: true
         }
@@ -148,96 +146,41 @@ function queries(chatId) {
 
     bot.once('message', (menu) => {
 
-        bot.sendMessage(chatId, 'Selecione um Agrupamento Muscular:', {
-            reply_markup: {
-                keyboard: splitMenu([...grupoMuscular, 'voltar'], 3),
-                one_time_keyboard: true
-            }
-        });
 
-        bot.once('message', (selectedGroup) => {
-            switch (menu.text) {
-                case 'Volume Semana Atual':
-                    getVolumeCurrentWeekByGroup(chatId, selectedGroup.text);
-                    break;
-                case 'Volume Semana Passada':
-                    getVolumePastWeekByGroup(chatId, selectedGroup.text)
-                    break;
-                case 'Ultimo treino do mesmo agrupamento muscular':
-                    getVolumeLastTrainingByGroup(chatId, selectedGroup.text)
-                    break;
+        switch (menu.text) {
+            case 'Volume Semana Atual Por Musculo':
+                dependsGroup(chatId, getVolumeCurrentWeekByGroupQuery)
+                break;
+            case 'Volume Semana Passada Por Musculo':
+                dependsGroup(chatId, getVolumePastWeekByGroupQuery)
+                break;
+            case 'Ultimo treino do mesmo Musculo':
+                dependsGroup(chatId, getVolumeLastTrainingByGroupQuery)
+                break;
 
-                case 'Treino de Hoje':
-                    getVolumeTodayByGroupQuery(chatId, selectedGroup.text)
-                    break;
+            case 'Detalhes do treino de Hoje':
+                getVolumeTodayByGroupQuery(chatId)
+                break;
 
-                default:
-                    break;
-            }
-        })
+            default:
+                break;
+        }
     })
 }
-function getVolumeLastTrainingByGroup(chatId, group) {
 
-    getVolumeLastTrainingByGroupQuery(group)
-        .then((result => calc(chatId, result)))
+function dependsGroup(chatId, callback) {
+    bot.sendMessage(chatId, 'Selecione um Agrupamento Muscular:', {
+        reply_markup: {
+            keyboard: splitMenu([...grupoMuscular, 'voltar'], 3),
+            one_time_keyboard: true
+        }
+    });
+
+    bot.once('message', (selectedGroup) => {
+        callback(chatId, selectedGroup.text)
+    })
 }
 
-
-function getVolumeCurrentWeekByGroup(chatId, group) {
-    getVolumeCurrentWeekByGroupQuery(group)
-        .then((result) => {
-            const { results } = result;
-
-            if (results.length > 0) {
-                const projection = results.map(r => r.properties);
-
-                const totalWeights =
-                    projection
-                        .map(p => p.Carga)
-                        .map(c => c.number)
-                        .reduce((partialSum, a) => partialSum + a, 0);
-
-                const totalSeries =
-                    projection
-                        .map(p => p.Serie)
-                        .map(c => c.number)
-                        .reduce((partialSum, a) => partialSum + a, 0);
-
-                bot.sendMessage(chatId, `
-                    Essa semana foi feitas ${totalSeries} Series, e ${totalWeights} kg, no ${group}
-                `)
-            }
-        })
-}
-
-function getVolumePastWeekByGroup(chatId, group) {
-    return getVolumePastWeekByGroupQuery(group)
-        .then((result) => {
-            const { results } = result;
-
-            if (results.length > 0) {
-                const projection = results.map(r => r.properties);
-
-                const totalWeights =
-                    projection
-                        .map(p => p.Carga)
-                        .map(c => c.number)
-                        .reduce((partialSum, a) => partialSum + a, 0);
-
-                const totalSeries =
-                    projection
-                        .map(p => p.Serie)
-                        .map(c => c.number)
-                        .reduce((partialSum, a) => partialSum + a, 0);
-
-                bot.sendMessage(chatId, `
-                Essa semana foi feitas ${totalSeries} Series, e ${totalWeights} kg, no ${group}
-            `)
-            }
-
-        })
-}
 
 
 

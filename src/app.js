@@ -12,10 +12,8 @@ bot.onText(/\/start/, (msg => {
     chatActived = false;
     bot.sendMessage(chatId, 'Selecione uma opção', {
         reply_markup: {
-            // keyboard: [[gymMenu.link, newsMenu.link, therapistMenu.link]],
-            // one_time_keyboard: true,
             inline_keyboard: splitMenu([
-                { text: '🏋️‍♂️ Treinar', callback_data: gymMenu.link },
+                { text: '🏋️‍♂️ Academia', callback_data: gymMenu.link },
                 { text: '📰 Noticias', callback_data: newsMenu.link },
                 { text: '🛋️ Terapia', callback_data: therapistMenu.link },
                 { text: '🍗 Dieta', callback_data: '/diet' },
@@ -48,7 +46,6 @@ bot.on('callback_query', (query) => {
             bot.sendMessage(chatId, `Opção: ${response}, não disponivel`)
             break;
     }
-
 })
 
 bot.onText(gymMenu.regex, (msg) => {

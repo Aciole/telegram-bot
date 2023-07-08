@@ -1,23 +1,23 @@
 const { bot } = require('../../../utils')
 
-function calculatedVolumeByroupingAndExercise(chatId, result) {
+function sendDetailedTrainingInformation(chatId, result) {
     const { results } = result;
 
     if (results.length > 0) {
+        let sendMessage = '';
+
         const projection = results.map(r => r.properties);
 
-        const exercisesDuplicate =
+        let exercises =
             projection
                 .map(p => p.Exercicios)
                 .map(c => c.title).flat()
                 .map(t => t.plain_text);
         ;
 
-        const exercises = exercisesDuplicate.filter((valor, indice) => {
-            return exercisesDuplicate.indexOf(valor) === indice;
+        exercises = exercises.filter((valor, indice) => {
+            return exercises.indexOf(valor) === indice;
         });
-
-        let sendMessage = '';
 
         exercises.forEach((exercise) => {
             const projectionByExercise = projection.filter((p) => {
@@ -47,18 +47,23 @@ function calculatedVolumeByroupingAndExercise(chatId, result) {
                 Math.max(...projectionByExercise
                     .map(p => p.Serie.number))
 
-            sendMessage += `
+            const totalReps =
+                projectionByExercise
+                    .map(p => p.Reps)
+                    .map(c => c.number)
+                    .reduce((partialSum, a) => partialSum + a, 0);
 
-*${exercise}*      
+            if (!sendMessage.includes(`*=== ${projectionByExercise[0].Agrupamento.rich_text[0].plain_text} ===*`)) {
+                sendMessage += `
 
-*Média de carga:* ${mediaWeight} kg
+*=== ${projectionByExercise[0].Agrupamento.rich_text[0].plain_text} ===*
+                
+                `
+            }
 
-*Carga mínima:* ${minWeight} kg
-*Carga máxima:* ${maxWeight} kg
-*Total de carga:* ${totalWeights} kg
-
-*Número de séries:* ${totalSeries} séries           
-            `;
+            sendMessage += getTemplateMarkdown(
+                exercise, mediaWeight, minWeight, maxWeight, totalWeights, totalReps, totalSeries
+            );
         })
 
         bot.sendMessage(chatId,
@@ -68,9 +73,28 @@ function calculatedVolumeByroupingAndExercise(chatId, result) {
     } else {
         bot.sendMessage(chatId, `Você não treinou  Hoje!`)
     }
+}
 
+
+function getTemplateMarkdown(exercise, mediaWeight, minWeight, maxWeight, totalWeights, totalReps, totalSeries) {
+    const msg =
+        `
+*${exercise}*      
+
+*Média de carga:* ${mediaWeight} kg
+
+*Carga mínima:* ${minWeight} kg
+*Carga máxima:* ${maxWeight} kg
+
+*Total de carga:* ${totalWeights} kg
+
+*Número de repetições:* ${totalReps}
+*Número de séries:* ${totalSeries} séries     
+    `
+
+    return msg
 }
 
 module.exports = {
-    calculatedVolumeByroupingAndExercise
+    sendDetailedTrainingInformation
 };
